@@ -1,0 +1,6 @@
+@CookiePoC_HostAddress = http://localhost:5146
+
+GET {{CookiePoC_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
