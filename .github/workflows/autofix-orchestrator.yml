@@ -1,5 +1,4 @@
-name: AutoFix Orchestrator (A: Branch+Test -> B: Fix+Commit -> C: PR)
-
+name: AutoFix Orchestrator 
 on:
   workflow_dispatch:
     inputs:
