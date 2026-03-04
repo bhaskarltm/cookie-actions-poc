@@ -1,0 +1,121 @@
+# ------------------------------------------------------------------------------
+# AutoFix Skeleton (Branching and Testing Only)
+#
+# PURPOSE :
+#   This workflow implements ONLY the automation pipeline mechanics:
+#     1) Trigger GitHub Action manually with an Issue/Task ID
+#        (later we can replace this manual trigger with a bot/orchestrator)
+#     2) Create a new fix branch from a base branch
+#     3) Execute test tasks (build + test + policy gate)
+#     4) Push the branch to origin
+#
+#   It DOES NOT:
+#     - decide what to fix
+#     - modify code
+#     - commit changes
+#     - create a PR
+#
+# NOTES:
+#   - Workflow files must be under .github/workflows/ (GitHub workflow syntax)
+#     https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax
+# ------------------------------------------------------------------------------
+
+name: AutoCreateBranch
+
+on:
+  # Manual trigger with inputs so the Task (Issue) remains decoupled from pipeline.
+  # workflow_dispatch is the standard "manual run" trigger.
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: "GitHub Issue number (task exists already)"
+        required: true
+      base_branch:
+        description: "Branch to branch off (usually main)"
+        required: true
+        default: "main"
+
+# ------------------------------------------------------------------------------
+# PERMISSIONS (Least privilege):
+#   We only need to create/push a branch (git push), so contents: write is enough.
+#   We are not creating PRs or updating issues in this skeleton.
+#   Security guidance: principle of least privilege for GITHUB_TOKEN.
+#   https://docs.github.com/en/actions/reference/security/secure-use
+# ------------------------------------------------------------------------------
+
+permissions:
+  contents: write
+
+jobs:
+  branch-and-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      # ------------------------------------------------------------------------
+      # 1) Checkout code
+      #
+      # ref: checks out the base branch specified as input.
+      # fetch-depth: 0 pulls full history (safer for branch operations).
+      # actions/checkout docs: https://github.com/actions/checkout
+      # ------------------------------------------------------------------------
+      - name: Checkout base branch
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ github.event.inputs.base_branch }}
+          fetch-depth: 0
+
+      # ------------------------------------------------------------------------
+      # 2) Setup .NET SDK
+      #
+      # Using actions/setup-dotnet ensures the intended SDK is available on runner.
+      # https://github.com/actions/setup-dotnet
+      # ------------------------------------------------------------------------
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      # ------------------------------------------------------------------------
+      # 3) Create fix branch (NO code change)
+      #
+      # We name the branch using issue_number for traceability.
+      # We export BRANCH into the job environment for later steps using $GITHUB_ENV.
+      # ------------------------------------------------------------------------
+      - name: Create fix branch (no code yet)
+        run: |
+          BRANCH="autofix/issue-${{ github.event.inputs.issue_number }}"
+          git checkout -b "$BRANCH"
+          echo "BRANCH=$BRANCH" >> $GITHUB_ENV
+
+      # ------------------------------------------------------------------------
+      # 4) Execute test task
+      #
+      # This proves pipeline can run build/test exactly like CI.
+      # If tests fail, workflow should fail (red).
+      # ------------------------------------------------------------------------
+      - name: Run build + tests
+        run: |
+          dotnet restore
+          dotnet build -c Release --no-restore
+          dotnet test -c Release --no-build
+
+      # ------------------------------------------------------------------------
+      # 5) Execute policy gate (cookie compliance)
+      #
+      # This is expected to FAIL today because your code intentionally violates it.
+      # In later steps, the fix algorithm will make this pass.
+      # ------------------------------------------------------------------------
+      - name: Run cookie policy gate (expected to fail)
+        run: |
+          ./scripts/check_cookies.sh
+
+      # ------------------------------------------------------------------------
+      # 6) Push branch to origin
+      #
+      # Even without commits, pushing creates the remote branch reference and proves:
+      #  - we can create branches
+      #  - permissions are correct for push
+      # ------------------------------------------------------------------------
+      - name: Push branch (still no commits / no code changes)
+        run: |
+          git push -u origin "$BRANCH"
