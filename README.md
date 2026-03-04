@@ -1,6 +1,6 @@
 # cookie-actions-poc — Autonomous Auto Fix PoC (Cookie Compliance)
 
-This repository demonstrates an **autonomous remediation workflow** for a simple **cookie security policy** (**HttpOnly / Secure / SameSite**) aligned to the PoC flow described in the [reference deck]  (https://ltimindtree-my.sharepoint.com/personal/janardhana_68050039_ltimindtree_com/_layouts/15/Doc.aspx?sourcedoc=%7B0F71CA19-E571-4F3F-9B30-3001BF51911F%7D&file=Semi_Automated_Compliance_Operations_at_Scale_v1.pptx&action=edit&mobileredirect=true&DefaultItemOpen=1) (trigger action → create fix branch → run tests → commit → raise PR).
+This repository demonstrates an **autonomous remediation workflow** for a simple **cookie security policy** (**HttpOnly / Secure / SameSite**) aligned to the PoC flow described in the [reference deck](https://ltimindtree-my.sharepoint.com/personal/janardhana_68050039_ltimindtree_com/_layouts/15/Doc.aspx?sourcedoc=%7B0F71CA19-E571-4F3F-9B30-3001BF51911F%7D&file=Semi_Automated_Compliance_Operations_at_Scale_v1.pptx&action=edit&mobileredirect=true&DefaultItemOpen=1) (trigger action → create fix branch → run tests → commit → raise PR).
 
 ## What’s inside
 
