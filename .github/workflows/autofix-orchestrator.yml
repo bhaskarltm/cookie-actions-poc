@@ -1,0 +1,91 @@
+name: AutoFix Orchestrator (Branch + Test + Chain)
+
+on:
+  workflow_dispatch:
+    inputs:
+      issue_number:
+        description: "GitHub Issue number (task already exists)"
+        required: true
+      base_branch:
+        description: "Base branch (usually main)"
+        required: true
+        default: "main"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  prep:
+    name: A) Prepare branch + run tests/gate
+    runs-on: ubuntu-latest
+
+    outputs:
+      branch_name: ${{ steps.vars.outputs.branch_name }}
+      gate_failed: ${{ steps.gate.outcome != 'success' }}
+
+    steps:
+      - name: Checkout base branch
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.base_branch }}
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Define branch name
+        id: vars
+        run: |
+          BRANCH="autofix/issue-${{ inputs.issue_number }}"
+          echo "branch_name=$BRANCH" >> $GITHUB_OUTPUT
+          echo "BRANCH=$BRANCH" >> $GITHUB_ENV
+
+      - name: Create or reset fix branch from base
+        run: |
+          git checkout -B "$BRANCH" "origin/${{ inputs.base_branch }}"
+
+      - name: Run build + tests
+        run: |
+          dotnet restore
+          dotnet build -c Release --no-restore
+          dotnet test -c Release --no-build
+
+      - name: Run cookie policy gate (expected to fail pre-fix)
+        id: gate
+        continue-on-error: true
+        run: |
+          chmod +x ./scripts/check_cookies.sh
+          ./scripts/check_cookies.sh
+
+      - name: Push branch (always)
+        if: always()
+        run: |
+          git push -u origin "$BRANCH"
+
+      - name: Summarize outcome
+        run: |
+          echo "Branch: $BRANCH"
+          echo "Gate outcome: ${{ steps.gate.outcome }}"
+
+  fix:
+    name: B) Fix + Commit (called workflow)
+    needs: prep
+    if: needs.prep.outputs.gate_failed == 'true'
+    uses: ./.github/workflows/autofix-fix-commit.yml
+    with:
+      issue_number: ${{ inputs.issue_number }}
+      base_branch: ${{ inputs.base_branch }}
+      branch_name: ${{ needs.prep.outputs.branch_name }}
+
+  pr:
+    name: C) Raise PR (called workflow)
+    needs: [prep, fix]
+    if: needs.prep.outputs.gate_failed == 'true' && needs.fix.result == 'success'
+    uses: ./.github/workflows/autofix-raise-pr.yml
+    with:
+      issue_number: ${{ inputs.issue_number }}
+      base_branch: ${{ inputs.base_branch }}
+      branch_name: ${{ needs.prep.outputs.branch_name }}

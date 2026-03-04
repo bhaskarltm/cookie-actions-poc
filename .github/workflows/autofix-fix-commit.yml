@@ -1,0 +1,77 @@
+name: AutoFix - Fix + Commit (Reusable)
+
+on:
+  workflow_call:
+    inputs:
+      issue_number:
+        required: true
+        type: string
+      base_branch:
+        required: true
+        type: string
+      branch_name:
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  fix_and_commit:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout fix branch
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.branch_name }}
+          fetch-depth: 0
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      # --- FIX LOGIC PLACEHOLDER ---
+      # Replace this block later with your real "code fix algorithm"
+      - name: Apply deterministic cookie fix (PoC)
+        run: |
+          FILE="CookiePoC/Program.cs"
+          test -f "$FILE"
+
+          # Patch cookie options to include flags
+          sed -i 's/Expires = DateTimeOffset.UtcNow.AddDays(7)/Expires = DateTimeOffset.UtcNow.AddDays(7),\
+          \n        HttpOnly = true,\
+          \n        Secure = true,\
+          \n        SameSite = SameSiteMode.Strict/' "$FILE"
+
+          echo "Diff:"
+          git diff -- "$FILE" || true
+
+      - name: Build + Test
+        run: |
+          dotnet restore
+          dotnet build -c Release --no-restore
+          dotnet test -c Release --no-build
+
+      - name: Cookie policy gate (must pass after fix)
+        run: |
+          chmod +x ./scripts/check_cookies.sh
+          ./scripts/check_cookies.sh
+
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "No changes detected. Nothing to commit."
+            exit 1
+          fi
+
+          git add -A
+          git commit -m "fix: cookie compliance (issue #${{ inputs.issue_number }})"
+
+      - name: Push commit
+        run: |
+          git push origin "${{ inputs.branch_name }}"

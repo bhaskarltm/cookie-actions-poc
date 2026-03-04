@@ -1,0 +1,41 @@
+name: AutoFix - Raise PR (Reusable)
+
+on:
+  workflow_call:
+    inputs:
+      issue_number:
+        required: true
+        type: string
+      base_branch:
+        required: true
+        type: string
+      branch_name:
+        required: true
+        type: string
+
+permissions:
+  contents: read
+  pull-requests: write
+  issues: write
+
+jobs:
+  create_pr:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout (for gh context)
+        uses: actions/checkout@v5
+        with:
+          ref: ${{ inputs.base_branch }}
+          fetch-depth: 1
+
+      - name: Create PR (GitHub CLI)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Create PR. If PR already exists, this will fail; you can handle that later.
+          gh pr create \
+            --title "AutoFix: Cookie compliance (Issue #${{ inputs.issue_number }})" \
+            --body "Automated fix applied and validated.\n\nCloses #${{ inputs.issue_number }}" \
+            --base "${{ inputs.base_branch }}" \
+            --head "${{ inputs.branch_name }}"
