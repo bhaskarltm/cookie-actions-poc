@@ -27,7 +27,13 @@ app.MapGet("/set-cookie", (HttpResponse response) =>
     // Intentionally insecure cookie options (PoC)
     response.Cookies.Append("sessionId", "abc123", new CookieOptions
     {
-        Expires = DateTimeOffset.UtcNow.AddDays(7)
+        Expires = DateTimeOffset.UtcNow.AddDays(7),
+
+        HttpOnly = true,
+
+        Secure = true,
+
+        SameSite = SameSiteMode.Strict
         // Missing: HttpOnly, Secure, SameSite
     });
 
