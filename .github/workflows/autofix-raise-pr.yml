@@ -13,6 +13,7 @@ on:
         required: true
         type: string
 
+# IMPORTANT: These permissions must also be allowed by the CALLER workflow
 permissions:
   contents: read
   pull-requests: write
@@ -29,13 +30,31 @@ jobs:
           ref: ${{ inputs.base_branch }}
           fetch-depth: 1
 
-      - name: Create PR (GitHub CLI)
+      - name: Show token capability (debug)
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ github.token }}
         run: |
-          # Create PR. If PR already exists, this will fail; you can handle that later.
+          echo "Actor: ${{ github.actor }}"
+          echo "Repo:  ${{ github.repository }}"
+          gh auth status || true
+
+      - name: Create PR (if not exists)
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          HEAD="${{ inputs.branch_name }}"
+          BASE="${{ inputs.base_branch }}"
+
+          # If PR already exists, do not fail the workflow
+          EXISTING=$(gh pr list --head "$HEAD" --base "$BASE" --json number --jq '.[0].number' || true)
+
+          if [ -n "$EXISTING" ]; then
+            echo "PR already exists: #$EXISTING"
+            exit 0
+          fi
+
           gh pr create \
             --title "AutoFix: Cookie compliance (Issue #${{ inputs.issue_number }})" \
-            --body "Automated fix applied and validated.\n\nCloses #${{ inputs.issue_number }}" \
-            --base "${{ inputs.base_branch }}" \
-            --head "${{ inputs.branch_name }}"
+            --body  "Automated fix applied and validated.\n\nCloses #${{ inputs.issue_number }}" \
+            --base  "$BASE" \
+            --head  "$HEAD"
