@@ -106,7 +106,7 @@ jobs:
       # In later steps, the fix algorithm will make this pass.
       # ------------------------------------------------------------------------
       - name: Run cookie policy gate (expected to fail)
-        run: |
+        run: 
           chmod +x ./scripts/check_cookies.sh
 
       # ------------------------------------------------------------------------
