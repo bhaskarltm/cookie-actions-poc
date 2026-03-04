@@ -1,7 +1,7 @@
 # ------------------------------------------------------------------------------
 # AutoFix Skeleton (Branching and Testing Only)
 #
-# PURPOSE :
+# PURPOSE:
 #   This workflow implements ONLY the automation pipeline mechanics:
 #     1) Trigger GitHub Action manually with an Issue/Task ID
 #        (later we can replace this manual trigger with a bot/orchestrator)
@@ -16,15 +16,15 @@
 #     - create a PR
 #
 # NOTES:
-#   - Workflow files must be under .github/workflows/ (GitHub workflow syntax)
-#     https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax
+#   - Workflow files must be under .github/workflows/
+#     GitHub workflow syntax: https://docs.github.com/en/actions/reference/workflows-and-actions/workflow-syntax
 # ------------------------------------------------------------------------------
 
 name: AutoCreateBranch
 
 on:
   # Manual trigger with inputs so the Task (Issue) remains decoupled from pipeline.
-  # workflow_dispatch is the standard "manual run" trigger.
+  # workflow_dispatch is the standard manual run trigger.
   workflow_dispatch:
     inputs:
       issue_number:
@@ -48,6 +48,8 @@ permissions:
 
 jobs:
   branch-and-test:
+    # runs-on is the GitHub-hosted runner OS (remote VM), not your local PC.
+    # ubuntu-latest is ideal because we run bash scripts (grep/chmod/etc).
     runs-on: ubuntu-latest
 
     steps:
@@ -106,8 +108,9 @@ jobs:
       # In later steps, the fix algorithm will make this pass.
       # ------------------------------------------------------------------------
       - name: Run cookie policy gate (expected to fail)
-        run: 
+        run: |
           chmod +x ./scripts/check_cookies.sh
+          ./scripts/check_cookies.sh
 
       # ------------------------------------------------------------------------
       # 6) Push branch to origin
