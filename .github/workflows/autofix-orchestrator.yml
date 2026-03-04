@@ -1,20 +1,28 @@
-name: AutoFix Orchestrator (Branch + Test + Chain)
+name: AutoFix Orchestrator (A: Branch+Test -> B: Fix+Commit -> C: PR)
 
 on:
   workflow_dispatch:
     inputs:
       issue_number:
-        description: "GitHub Issue number (task already exists)"
+        description: "GitHub Issue number (task exists already)"
         required: true
       base_branch:
-        description: "Base branch (usually main)"
+        description: "Branch to branch off (usually main)"
         required: true
         default: "main"
 
+# Optional but recommended: prevent two runs for same issue fighting each other
+concurrency:
+  group: autofix-issue-${{ inputs.issue_number }}
+  cancel-in-progress: true
+
+# IMPORTANT:
+# The called workflows (B and C) cannot request MORE permissions than the caller.
+# So this orchestrator must include the superset.
 permissions:
   contents: write
   pull-requests: write
-  issues: write 
+  issues: write
 
 jobs:
   prep:
@@ -23,7 +31,7 @@ jobs:
 
     outputs:
       branch_name: ${{ steps.vars.outputs.branch_name }}
-      gate_failed: ${{ steps.gate.outcome != 'success' }}
+      gate_failed: ${{ steps.decision.outputs.gate_failed }}
 
     steps:
       - name: Checkout base branch
@@ -41,11 +49,15 @@ jobs:
         id: vars
         run: |
           BRANCH="autofix/issue-${{ inputs.issue_number }}"
-          echo "branch_name=$BRANCH" >> $GITHUB_OUTPUT
-          echo "BRANCH=$BRANCH" >> $GITHUB_ENV
+          echo "branch_name=$BRANCH" >> "$GITHUB_OUTPUT"
+          echo "BRANCH=$BRANCH" >> "$GITHUB_ENV"
 
+      # Key fix for your non-fast-forward problem:
+      # Always reset the local bot branch to latest base branch
+      # and then push with --force-with-lease (safe overwrite).
       - name: Create or reset fix branch from base
         run: |
+          git fetch origin "${{ inputs.base_branch }}"
           git checkout -B "$BRANCH" "origin/${{ inputs.base_branch }}"
 
       - name: Run build + tests
@@ -61,15 +73,24 @@ jobs:
           chmod +x ./scripts/check_cookies.sh
           ./scripts/check_cookies.sh
 
+      # Always push the branch even if gate fails (your Option A),
+      # and avoid non-fast-forward by using --force-with-lease.
       - name: Push branch (always)
         if: always()
         run: |
-          git push -u origin "$BRANCH"
+          git push -u --force-with-lease origin "$BRANCH"
 
-      - name: Summarize outcome
+      # Convert gate outcome into a clean output that downstream jobs can use
+      - name: Decide next action
+        id: decision
         run: |
-          echo "Branch: $BRANCH"
-          echo "Gate outcome: ${{ steps.gate.outcome }}"
+          if [ "${{ steps.gate.outcome }}" = "success" ]; then
+            echo "gate_failed=false" >> "$GITHUB_OUTPUT"
+            echo "Cookie gate PASSED. No fix required."
+          else
+            echo "gate_failed=true" >> "$GITHUB_OUTPUT"
+            echo "Cookie gate FAILED. Will call Fix+Commit workflow."
+          fi
 
   fix:
     name: B) Fix + Commit (called workflow)
