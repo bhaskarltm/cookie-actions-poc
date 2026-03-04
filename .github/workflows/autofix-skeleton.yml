@@ -107,7 +107,7 @@ jobs:
       # ------------------------------------------------------------------------
       - name: Run cookie policy gate (expected to fail)
         run: |
-          ./scripts/check_cookies.sh
+          chmod +x ./scripts/check_cookies.sh
 
       # ------------------------------------------------------------------------
       # 6) Push branch to origin
